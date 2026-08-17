@@ -1,7 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
+import { DATA_DIR } from "@/lib/dataDir";
 
-const DATA_DIR = path.join(process.cwd(), ".data");
 const BUDGET_FILE = path.join(DATA_DIR, "budget.json");
 
 /**

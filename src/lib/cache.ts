@@ -1,7 +1,8 @@
 import { promises as fs } from "fs";
 import path from "path";
+import { DATA_DIR } from "./dataDir";
 
-const CACHE_DIR = path.join(process.cwd(), ".data", "cache");
+const CACHE_DIR = path.join(DATA_DIR, "cache");
 
 /**
  * How long a cached response is served before it's considered stale enough

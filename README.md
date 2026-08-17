@@ -24,12 +24,13 @@ categories, powered by the [FantasyPros](https://www.fantasypros.com/) API.
 This account's FantasyPros key is capped at **50 requests/day**, so the app
 is built to spend that budget carefully:
 
-- **On-disk response cache** (`.data/cache/`) - identical queries (same
-  season/week/position/scoring) are served from cache for
-  `FANTASYPROS_CACHE_TTL_HOURS` (default 12h) before another live call is made.
-- **Daily request budget tracker** (`.data/budget.json`) - live calls are
-  capped at `FANTASYPROS_DAILY_LIMIT` (default **45**, a few below the real
-  50 cap as headroom) and refuse once exhausted, per UTC day.
+- **On-disk response cache** (`cache/` under the OS temp dir - see below) -
+  identical queries (same season/week/position/scoring) are served from
+  cache for `FANTASYPROS_CACHE_TTL_HOURS` (default 12h) before another live
+  call is made.
+- **Daily request budget tracker** (`budget.json`, same temp dir) - live
+  calls are capped at `FANTASYPROS_DAILY_LIMIT` (default **45**, a few below
+  the real 50 cap as headroom) and refuse once exhausted, per UTC day.
 - **Manual refresh only** - the dashboard fetches once per filter change and
   never polls; a "Refresh data" button is the only way to force a re-fetch.
 - **"Force mock data" toggle** - lets you explore the UI freely (new
@@ -37,12 +38,23 @@ is built to spend that budget carefully:
 - If a live call fails or the budget is exhausted, the app transparently
   falls back to mock data with a visible warning banner rather than erroring out.
 
-The budget/cache files are stored under `.data/` (gitignored) using the
-filesystem, which is fine for local dev or a single long-running server.
-**If you deploy to a serverless platform (e.g. Vercel)**, the filesystem is
-ephemeral/read-only outside `/tmp`, so the budget tracker won't persist
-across invocations - swap `lib/fantasypros/cache.ts` and `budget.ts` for a
-real KV store (Vercel KV, Redis, etc.) before relying on it in production.
+The cache/budget files live under `os.tmpdir()` (`src/lib/dataDir.ts`) -
+`/tmp` on Linux/serverless, the OS temp dir elsewhere - rather than the
+project directory, specifically **because** serverless platforms like
+Vercel ship the deployed app as a read-only bundle; only `/tmp` is writable
+there. (An earlier version of this used `process.cwd()/.data`, which threw
+`ENOENT: no such file or directory, mkdir '/var/task/.data'` on Vercel -
+if you see that error, you're on a stale build; redeploy.)
+
+**This makes deployment work without crashing, but doesn't make budget
+enforcement bulletproof there**: serverless `/tmp` only persists for the
+life of one warm function instance and isn't shared across concurrent
+instances, so under real concurrent traffic the daily cap can be
+under-enforced (each cold instance starts counting from 0 again). For a
+single-user dashboard with light traffic this is a minor, low-probability
+edge case rather than a real risk - but if you want the cap to be
+airtight, swap `src/lib/cache.ts` and `src/lib/fantasypros/budget.ts` for a
+real KV store (Vercel KV, Upstash Redis, etc.) instead of the filesystem.
 
 ### Setup
 
