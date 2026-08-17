@@ -1,4 +1,12 @@
-import { PlayerRow, Position, StatsQuery } from "./types";
+import {
+  DefenseMatchupRow,
+  MATCHUP_POSITIONS,
+  MatchupPosition,
+  PlayerRow,
+  PointsAllowedQuery,
+  Position,
+  StatsQuery,
+} from "./types";
 
 const NAMES_BY_POSITION: Record<Position, [string, string][]> = {
   QB: [
@@ -176,4 +184,51 @@ export function generateMockStats(query: StatsQuery): PlayerRow[] {
       stats,
     } satisfies PlayerRow;
   });
+}
+
+const NFL_TEAMS: [string, string][] = [
+  ["ARI", "Cardinals"], ["ATL", "Falcons"], ["BAL", "Ravens"], ["BUF", "Bills"],
+  ["CAR", "Panthers"], ["CHI", "Bears"], ["CIN", "Bengals"], ["CLE", "Browns"],
+  ["DAL", "Cowboys"], ["DEN", "Broncos"], ["DET", "Lions"], ["GB", "Packers"],
+  ["HOU", "Texans"], ["IND", "Colts"], ["JAC", "Jaguars"], ["KC", "Chiefs"],
+  ["LAC", "Chargers"], ["LAR", "Rams"], ["LV", "Raiders"], ["MIA", "Dolphins"],
+  ["MIN", "Vikings"], ["NE", "Patriots"], ["NO", "Saints"], ["NYG", "Giants"],
+  ["NYJ", "Jets"], ["PHI", "Eagles"], ["PIT", "Steelers"], ["SEA", "Seahawks"],
+  ["SF", "49ers"], ["TB", "Buccaneers"], ["TEN", "Titans"], ["WAS", "Commanders"],
+];
+
+/** Baseline average fantasy points allowed per game, by position, before scoring/team variance. */
+const MATCHUP_BASELINE: Record<MatchupPosition, number> = {
+  QB: 19,
+  RB: 21,
+  WR: 27,
+  TE: 11,
+};
+
+export function generateMockPointsAllowed(query: PointsAllowedQuery): DefenseMatchupRow[] {
+  const recBonus = query.scoring === "PPR" ? 1.15 : query.scoring === "HALF" ? 1.07 : 1;
+
+  const raw = NFL_TEAMS.map(([team, teamName]) => {
+    const rand = seededRandom(`${query.season}-${query.scoring}-${team}`);
+    const vs = {} as Record<MatchupPosition, { pointsAllowed: number }>;
+    for (const pos of MATCHUP_POSITIONS) {
+      const scoringFactor = pos === "QB" ? 1 : recBonus;
+      const base = MATCHUP_BASELINE[pos] * scoringFactor;
+      const pointsAllowed = Math.round(base * (0.75 + rand() * 0.5) * 10) / 10;
+      vs[pos] = { pointsAllowed };
+    }
+    return { team, teamName, vs };
+  });
+
+  const ranked: DefenseMatchupRow[] = raw.map((row) => ({ ...row, vs: {} as DefenseMatchupRow["vs"] }));
+  for (const pos of MATCHUP_POSITIONS) {
+    const order = [...raw]
+      .map((row, index) => ({ index, value: row.vs[pos].pointsAllowed }))
+      .sort((a, b) => a.value - b.value);
+    order.forEach(({ index }, rankIndex) => {
+      ranked[index].vs[pos] = { pointsAllowed: raw[index].vs[pos].pointsAllowed, rank: rankIndex + 1 };
+    });
+  }
+
+  return ranked;
 }

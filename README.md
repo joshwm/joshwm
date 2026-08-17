@@ -9,6 +9,10 @@ categories, powered by the [FantasyPros](https://www.fantasypros.com/) API.
   Full PPR), and week (full season projections or a specific week 1-18).
 - Select up to 8 players/defenses and compare them in a sortable stats table
   and a bar chart, with the best value per category highlighted.
+- **Points Allowed by Position** tab: a 32-team heatmap of average fantasy
+  points each defense allows to opposing QB/RB/WR/TE, for finding favorable
+  start/sit matchups (separate from a single defense's own real points
+  allowed, which lives in the Player Comparison tab under the DST position).
 - Works immediately on generated mock data with no API key configured.
 
 ### FantasyPros API budget handling
@@ -57,6 +61,16 @@ mapping hasn't been verified against a real response yet. If live data comes
 back with missing/mismatched stats after you add your key, the only place
 that needs adjusting is `normalizePlayer()` in that file - everything else
 (cache, budget, UI) is decoupled from the exact response shape.
+
+The **Points Allowed by Position** tab is a bigger unknown: that report
+isn't documented anywhere in FantasyPros' public v2 JSON API reference, and
+may only exist as an HTML page (`fantasypros.com/nfl/points-allowed.php`)
+rather than a JSON endpoint at all. `fetchLivePointsAllowed()` in
+`client.ts` points at a guessed URL/shape; if it's wrong the app falls back
+to mock data automatically with a warning banner rather than breaking, but
+you'll want to confirm the real endpoint (check the FantasyPros API docs
+under your account, or their partner support) before trusting live numbers
+on that tab.
 
 ### Project structure
 

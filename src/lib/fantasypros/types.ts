@@ -33,6 +33,35 @@ export interface StatsResult {
   fetchedAt: string;
 }
 
+/** The four offense positions FantasyPros tracks in its points-allowed report. */
+export type MatchupPosition = "QB" | "RB" | "WR" | "TE";
+export const MATCHUP_POSITIONS: MatchupPosition[] = ["QB", "RB", "WR", "TE"];
+
+export interface PositionMatchupStat {
+  /** Average fantasy points allowed per game to this offensive position. */
+  pointsAllowed: number;
+  /** 1 = toughest matchup (fewest points allowed) for that position. */
+  rank: number;
+}
+
+export interface DefenseMatchupRow {
+  team: string;
+  teamName: string;
+  vs: Record<MatchupPosition, PositionMatchupStat>;
+}
+
+export interface PointsAllowedQuery {
+  season: number;
+  scoring: ScoringFormat;
+}
+
+export interface PointsAllowedResult {
+  query: PointsAllowedQuery;
+  teams: DefenseMatchupRow[];
+  source: "live" | "mock" | "cache";
+  fetchedAt: string;
+}
+
 export interface StatCategoryDef {
   key: string;
   label: string;
