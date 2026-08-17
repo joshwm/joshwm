@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { DefenseMatchupRow, MatchupPosition } from "@/lib/fantasypros/types";
 import { MATCHUP_POSITIONS } from "@/lib/fantasypros/types";
-import { SEQUENTIAL_BLUE } from "@/lib/palette";
+import { SEQUENTIAL_BLUE, sequentialHeatColor } from "@/lib/palette";
 
 interface PointsAllowedTableProps {
   teams: DefenseMatchupRow[];
@@ -11,14 +11,6 @@ interface PointsAllowedTableProps {
 
 type SortKey = "team" | MatchupPosition;
 type SortState = { key: SortKey; dir: "asc" | "desc" };
-
-function heatColor(rank: number, total: number): string {
-  const bucket = Math.min(
-    SEQUENTIAL_BLUE.length - 1,
-    Math.floor(((rank - 1) / total) * SEQUENTIAL_BLUE.length)
-  );
-  return SEQUENTIAL_BLUE[bucket];
-}
 
 export function PointsAllowedTable({ teams }: PointsAllowedTableProps) {
   const [sort, setSort] = useState<SortState>({ key: "team", dir: "asc" });
@@ -98,7 +90,7 @@ export function PointsAllowedTable({ teams }: PointsAllowedTableProps) {
                     <td key={pos} className="px-3 py-2">
                       <span
                         className="inline-flex min-w-16 items-center justify-between gap-2 rounded px-2 py-1 tabular-nums text-[var(--foreground)]"
-                        style={{ backgroundColor: `${heatColor(stat.rank, teams.length)}33` }}
+                        style={{ backgroundColor: `${sequentialHeatColor(stat.rank, teams.length)}33` }}
                       >
                         {stat.pointsAllowed}
                         <span className="text-xs text-[var(--text-muted)]">#{stat.rank}</span>

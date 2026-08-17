@@ -7,7 +7,16 @@ import { PlayerSelector } from "@/components/PlayerSelector";
 import { ComparisonTable } from "@/components/ComparisonTable";
 import { ComparisonChart } from "@/components/ComparisonChart";
 import { useChartPalette } from "@/lib/palette";
-import { STAT_CATEGORIES, type Position, type ScoringFormat, type WeekSelector, type StatsResult } from "@/lib/fantasypros/types";
+import { buildPlayerMatchups } from "@/lib/matchup";
+import {
+  STAT_CATEGORIES,
+  type Position,
+  type ScoringFormat,
+  type WeekSelector,
+  type StatsResult,
+  type PointsAllowedResult,
+} from "@/lib/fantasypros/types";
+import type { ScheduleResult } from "@/lib/schedule/types";
 
 const MAX_SELECTED = 8;
 const CURRENT_SEASON = new Date().getFullYear();
@@ -21,12 +30,16 @@ export function ComparisonView({ dataSource, onFetched }: ComparisonViewProps) {
   const [position, setPosition] = useState<Position>("RB");
   const [scoring, setScoring] = useState<ScoringFormat>("PPR");
   const [week, setWeek] = useState<WeekSelector>("draft");
+  const matchupWeek = week === "draft" ? 1 : week;
 
   const [result, setResult] = useState<StatsResult & { warning?: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [chartCategory, setChartCategory] = useState("points");
+
+  const [schedule, setSchedule] = useState<ScheduleResult & { warning?: string } | null>(null);
+  const [pointsAllowed, setPointsAllowed] = useState<PointsAllowedResult & { warning?: string } | null>(null);
 
   const { categorical } = useChartPalette();
   const categories = STAT_CATEGORIES[position];
@@ -58,10 +71,38 @@ export function ComparisonView({ dataSource, onFetched }: ComparisonViewProps) {
     }
   }, [position, scoring, week, dataSource, onFetched]);
 
+  const loadSchedule = useCallback(async () => {
+    const params = new URLSearchParams({ season: String(CURRENT_SEASON), week: String(matchupWeek), source: dataSource });
+    const res = await fetch(`/api/schedule?${params}`);
+    if (res.ok) setSchedule((await res.json()) as ScheduleResult & { warning?: string });
+  }, [matchupWeek, dataSource]);
+
+  const loadPointsAllowed = useCallback(async () => {
+    const params = new URLSearchParams({ season: String(CURRENT_SEASON), scoring, source: dataSource });
+    const res = await fetch(`/api/points-allowed?${params}`);
+    if (res.ok) setPointsAllowed((await res.json()) as PointsAllowedResult & { warning?: string });
+    onFetched();
+  }, [scoring, dataSource, onFetched]);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch triggered by filter change
     loadStats();
   }, [loadStats]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- upcoming-opponent lookup for the selected week
+    loadSchedule();
+  }, [loadSchedule]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- season-average matchup data for the selected scoring format
+    loadPointsAllowed();
+  }, [loadPointsAllowed]);
+
+  const matchups = useMemo(
+    () => buildPlayerMatchups(result?.players ?? [], schedule?.teams ?? null, pointsAllowed?.teams ?? null),
+    [result, schedule, pointsAllowed]
+  );
 
   const selectedPlayers = useMemo(
     () => (result?.players ?? []).filter((p) => selectedIds.includes(p.id)).sort(
@@ -77,6 +118,7 @@ export function ComparisonView({ dataSource, onFetched }: ComparisonViewProps) {
   }
 
   const chartCategoryDef = categories.find((c) => c.key === chartCategory) ?? categories[0];
+  const matchupWarning = schedule?.warning ?? pointsAllowed?.warning;
 
   return (
     <>
@@ -98,6 +140,11 @@ export function ComparisonView({ dataSource, onFetched }: ComparisonViewProps) {
       {result && (
         <div className="mb-4">
           <DataSourceBadge source={result.source} fetchedAt={result.fetchedAt} warning={result.warning} />
+          {matchupWarning && (
+            <p className="mt-1 text-xs" style={{ color: "var(--status-warning)" }}>
+              {matchupWarning}
+            </p>
+          )}
         </div>
       )}
       {error && (
@@ -113,6 +160,7 @@ export function ComparisonView({ dataSource, onFetched }: ComparisonViewProps) {
           onToggle={toggleSelected}
           colors={categorical}
           maxSelected={MAX_SELECTED}
+          matchups={matchups}
         />
 
         <div className="flex flex-col gap-4">
@@ -135,7 +183,13 @@ export function ComparisonView({ dataSource, onFetched }: ComparisonViewProps) {
           </div>
 
           <ComparisonChart players={selectedPlayers} category={chartCategoryDef} colors={categorical} />
-          <ComparisonTable players={selectedPlayers} categories={categories} colors={categorical} />
+          <ComparisonTable
+            players={selectedPlayers}
+            categories={categories}
+            colors={categorical}
+            matchups={matchups}
+            matchupWeek={matchupWeek}
+          />
         </div>
       </div>
     </>

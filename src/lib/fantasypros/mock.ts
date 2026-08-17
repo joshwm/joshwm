@@ -7,6 +7,8 @@ import {
   Position,
   StatsQuery,
 } from "./types";
+import { seededRandom } from "@/lib/random";
+import { NFL_TEAMS, TEAM_ABBRS } from "@/lib/teams";
 
 const NAMES_BY_POSITION: Record<Position, [string, string][]> = {
   QB: [
@@ -33,29 +35,10 @@ const NAMES_BY_POSITION: Record<Position, [string, string][]> = {
     ["Justin", "Tucker"], ["Harrison", "Butker"], ["Brandon", "Aubrey"], ["Tyler", "Bass"],
     ["Jake", "Moody"], ["Evan", "McPherson"], ["Jason", "Sanders"], ["Younghoe", "Koo"],
   ],
-  DST: [
-    ["49ers", ""], ["Cowboys", ""], ["Ravens", ""], ["Jets", ""],
-    ["Browns", ""], ["Bills", ""], ["Steelers", ""], ["Eagles", ""],
-  ],
+  DST: [],
 };
 
-const TEAMS = ["BUF", "KC", "PHI", "BAL", "CIN", "HOU", "DAL", "LAC", "SF", "ARI", "JAC", "GB"];
-
-/** Simple deterministic PRNG (mulberry32) seeded from a string. */
-function seededRandom(seed: string) {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) {
-    h = Math.imul(31, h) + seed.charCodeAt(i);
-  }
-  let state = h >>> 0;
-  return () => {
-    state |= 0;
-    state = (state + 0x6d2b79f5) | 0;
-    let t = Math.imul(state ^ (state >>> 15), 1 | state);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+const TEAMS = TEAM_ABBRS;
 
 function statsForPosition(position: Position, rand: () => number, rankFactor: number): Record<string, number> {
   const scale = (base: number, spread: number) =>
@@ -164,38 +147,29 @@ function computePoints(position: Position, stats: Record<string, number>, scorin
 }
 
 export function generateMockStats(query: StatsQuery): PlayerRow[] {
-  const roster = NAMES_BY_POSITION[query.position];
-  return roster.map(([first, last], index) => {
+  const roster: [string, string, string][] =
+    query.position === "DST"
+      ? NFL_TEAMS.map(([abbr, teamName]) => [teamName, "", abbr])
+      : NAMES_BY_POSITION[query.position].map(([first, last], i) => [first, last, TEAMS[i % TEAMS.length]]);
+
+  const players = roster.map(([first, last, team], index) => {
     const seed = `${query.season}-${query.week}-${query.position}-${query.scoring}-${index}`;
     const rand = seededRandom(seed);
-    const rank = index + 1;
     const rankFactor = Math.max(0.35, 1.15 - index * 0.07);
     const stats = statsForPosition(query.position, rand, rankFactor);
     const points = Math.round(computePoints(query.position, stats, query.scoring) * 10) / 10;
     const name = query.position === "DST" ? `${first} DST` : `${first} ${last}`;
 
-    return {
-      id: seed,
-      name,
-      team: query.position === "DST" ? "" : TEAMS[index % TEAMS.length],
-      position: query.position,
-      rank,
-      points,
-      stats,
-    } satisfies PlayerRow;
+    return { id: seed, name, team, position: query.position, rank: index + 1, points, stats } satisfies PlayerRow;
   });
-}
 
-const NFL_TEAMS: [string, string][] = [
-  ["ARI", "Cardinals"], ["ATL", "Falcons"], ["BAL", "Ravens"], ["BUF", "Bills"],
-  ["CAR", "Panthers"], ["CHI", "Bears"], ["CIN", "Bengals"], ["CLE", "Browns"],
-  ["DAL", "Cowboys"], ["DEN", "Broncos"], ["DET", "Lions"], ["GB", "Packers"],
-  ["HOU", "Texans"], ["IND", "Colts"], ["JAC", "Jaguars"], ["KC", "Chiefs"],
-  ["LAC", "Chargers"], ["LAR", "Rams"], ["LV", "Raiders"], ["MIA", "Dolphins"],
-  ["MIN", "Vikings"], ["NE", "Patriots"], ["NO", "Saints"], ["NYG", "Giants"],
-  ["NYJ", "Jets"], ["PHI", "Eagles"], ["PIT", "Steelers"], ["SEA", "Seahawks"],
-  ["SF", "49ers"], ["TB", "Buccaneers"], ["TEN", "Titans"], ["WAS", "Commanders"],
-];
+  if (query.position !== "DST") return players;
+
+  // Roster order is alphabetical by team, not by projected quality - re-rank by points instead.
+  return [...players]
+    .sort((a, b) => b.points - a.points)
+    .map((p, i) => ({ ...p, rank: i + 1 }));
+}
 
 /** Baseline average fantasy points allowed per game, by position, before scoring/team variance. */
 const MATCHUP_BASELINE: Record<MatchupPosition, number> = {

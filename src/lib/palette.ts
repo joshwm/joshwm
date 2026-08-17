@@ -32,6 +32,12 @@ export const SEQUENTIAL_BLUE = [
   "#256abf", "#1c5cab", "#184f95", "#104281", "#0d366b",
 ] as const;
 
+/** Bucket a 1..total rank into a step of SEQUENTIAL_BLUE (1 = lightest). */
+export function sequentialHeatColor(rank: number, total: number): string {
+  const bucket = Math.min(SEQUENTIAL_BLUE.length - 1, Math.floor(((rank - 1) / total) * SEQUENTIAL_BLUE.length));
+  return SEQUENTIAL_BLUE[bucket];
+}
+
 export const STATUS = {
   good: "#0ca30c",
   warning: "#fab219",

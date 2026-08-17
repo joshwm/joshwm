@@ -13,6 +13,10 @@ categories, powered by the [FantasyPros](https://www.fantasypros.com/) API.
   points each defense allows to opposing QB/RB/WR/TE, for finding favorable
   start/sit matchups (separate from a single defense's own real points
   allowed, which lives in the Player Comparison tab under the DST position).
+- **Upcoming opponent + matchup strength**, right in the Player Comparison
+  table and player picker: each player's opponent for the selected week,
+  and how many fantasy points that opponent allows to the player's position
+  on average this season (color-coded, easiest matchups darkest).
 - Works immediately on generated mock data with no API key configured.
 
 ### FantasyPros API budget handling
@@ -62,6 +66,16 @@ back with missing/mismatched stats after you add your key, the only place
 that needs adjusting is `normalizePlayer()` in that file - everything else
 (cache, budget, UI) is decoupled from the exact response shape.
 
+**Upcoming opponent** comes from a third source, not FantasyPros at all:
+NFL schedules aren't part of their API, so `src/lib/schedule/client.ts`
+calls ESPN's public scoreboard endpoint (free, no key, doesn't touch your
+50/day budget). That endpoint's shape is from general public knowledge, not
+verified live from this dev environment (its network egress is
+allowlisted and doesn't include espn.com) - if it's wrong, the app falls
+back to an obviously-synthetic placeholder schedule with a warning rather
+than showing a wrong matchup as if it were real. Worth a spot-check against
+a real week once you're running it somewhere with normal network access.
+
 The **Points Allowed by Position** tab is a bigger unknown: that report
 isn't documented anywhere in FantasyPros' public v2 JSON API reference, and
 may only exist as an HTML page (`fantasypros.com/nfl/points-allowed.php`)
@@ -75,15 +89,26 @@ on that tab.
 ### Project structure
 
 ```
-src/lib/fantasypros/
-  types.ts     Position/scoring/stat-category definitions
-  client.ts    Real FantasyPros API call + response normalization
-  mock.ts      Deterministic mock data generator
-  cache.ts     On-disk TTL cache for live responses
-  budget.ts    Daily request budget tracker
-  service.ts   Orchestrates cache -> budget -> live call -> mock fallback
+src/lib/
+  cache.ts             Shared on-disk TTL cache for live responses
+  teams.ts             The 32 NFL team abbreviations/names
+  random.ts            Seeded PRNG used by every mock data generator
+  matchup.ts           Combines stats + schedule + points-allowed into per-player matchup info
+  fantasypros/
+    types.ts     Position/scoring/stat-category definitions
+    client.ts    Real FantasyPros API calls + response normalization
+    mock.ts      Deterministic mock data generator
+    budget.ts    Daily request budget tracker
+    service.ts   Orchestrates cache -> budget -> live call -> mock fallback
+  schedule/
+    types.ts     Schedule/opponent types
+    client.ts    Real NFL schedule lookup (ESPN's public API, no budget cost)
+    mock.ts      Deterministic placeholder schedule
+    service.ts   Orchestrates cache -> live call -> mock fallback
 src/app/api/
-  stats/route.ts    GET ?season&week&position&scoring&source
-  budget/route.ts   GET current budget usage
+  stats/route.ts            GET ?season&week&position&scoring&source
+  points-allowed/route.ts   GET ?season&scoring&source
+  schedule/route.ts         GET ?season&week&source
+  budget/route.ts           GET current FantasyPros budget usage
 src/components/     Dashboard UI (filters, player picker, table, chart)
 ```

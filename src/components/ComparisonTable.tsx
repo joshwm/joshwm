@@ -2,11 +2,15 @@
 
 import { useState } from "react";
 import type { PlayerRow, StatCategoryDef } from "@/lib/fantasypros/types";
+import type { PlayerMatchup } from "@/lib/matchup";
+import { sequentialHeatColor } from "@/lib/palette";
 
 interface ComparisonTableProps {
   players: PlayerRow[];
   categories: StatCategoryDef[];
   colors: readonly string[];
+  matchups: Record<string, PlayerMatchup>;
+  matchupWeek: number;
 }
 
 type SortState = { key: string; dir: "asc" | "desc" };
@@ -17,7 +21,33 @@ function bestValue(players: PlayerRow[], cat: StatCategoryDef): number | null {
   return cat.higherIsBetter ? Math.max(...values) : Math.min(...values);
 }
 
-export function ComparisonTable({ players, categories, colors }: ComparisonTableProps) {
+function OpponentCell({ matchup }: { matchup?: PlayerMatchup }) {
+  if (!matchup || !matchup.opponent) {
+    return <span className="text-[var(--text-muted)]">BYE</span>;
+  }
+  return (
+    <span className="text-[var(--foreground)]">
+      {matchup.homeAway === "away" ? "@" : "vs"} {matchup.opponent}
+    </span>
+  );
+}
+
+function OpponentAllowsCell({ matchup }: { matchup?: PlayerMatchup }) {
+  if (!matchup || matchup.opponentPointsAllowed === null || matchup.opponentRank === null) {
+    return <span className="text-[var(--text-muted)]">–</span>;
+  }
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 tabular-nums text-[var(--foreground)]"
+      style={{ backgroundColor: `${sequentialHeatColor(matchup.opponentRank, matchup.totalTeams)}33` }}
+    >
+      {matchup.opponentPointsAllowed}
+      <span className="text-xs text-[var(--text-muted)]">#{matchup.opponentRank}</span>
+    </span>
+  );
+}
+
+export function ComparisonTable({ players, categories, colors, matchups, matchupWeek }: ComparisonTableProps) {
   const [sort, setSort] = useState<SortState>({ key: "points", dir: "desc" });
 
   const getValue = (p: PlayerRow, key: string) => (key === "points" ? p.points : p.stats[key] ?? 0);
@@ -48,6 +78,10 @@ export function ComparisonTable({ players, categories, colors }: ComparisonTable
         <thead>
           <tr className="border-b border-[var(--border)] text-left text-[var(--text-secondary)]">
             <th className="sticky left-0 z-10 bg-[var(--surface)] px-3 py-2 font-medium">Player</th>
+            <th className="px-3 py-2 font-medium">Wk {matchupWeek} Opp</th>
+            <th className="px-3 py-2 font-medium" title="Season-average fantasy points the opponent allows to this position">
+              Opp Allows
+            </th>
             {categories.map((cat) => (
               <th
                 key={cat.key}
@@ -69,6 +103,7 @@ export function ComparisonTable({ players, categories, colors }: ComparisonTable
         <tbody>
           {sorted.map((p) => {
             const colorIdx = players.findIndex((x) => x.id === p.id);
+            const matchup = matchups[p.id];
             return (
               <tr key={p.id} className="border-b border-[var(--gridline)] last:border-0">
                 <td className="sticky left-0 z-10 bg-[var(--surface)] px-3 py-2">
@@ -81,6 +116,12 @@ export function ComparisonTable({ players, categories, colors }: ComparisonTable
                     <span className="text-[var(--foreground)]">{p.name}</span>
                     {p.team && <span className="text-[var(--text-muted)]">{p.team}</span>}
                   </span>
+                </td>
+                <td className="px-3 py-2">
+                  <OpponentCell matchup={matchup} />
+                </td>
+                <td className="px-3 py-2">
+                  <OpponentAllowsCell matchup={matchup} />
                 </td>
                 {categories.map((cat) => {
                   const value = getValue(p, cat.key);

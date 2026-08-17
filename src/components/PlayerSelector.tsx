@@ -1,6 +1,7 @@
 "use client";
 
 import type { PlayerRow } from "@/lib/fantasypros/types";
+import type { PlayerMatchup } from "@/lib/matchup";
 
 interface PlayerSelectorProps {
   players: PlayerRow[];
@@ -8,9 +9,10 @@ interface PlayerSelectorProps {
   onToggle: (id: string) => void;
   colors: readonly string[];
   maxSelected: number;
+  matchups: Record<string, PlayerMatchup>;
 }
 
-export function PlayerSelector({ players, selectedIds, onToggle, colors, maxSelected }: PlayerSelectorProps) {
+export function PlayerSelector({ players, selectedIds, onToggle, colors, maxSelected, matchups }: PlayerSelectorProps) {
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
       <div className="mb-2 flex items-center justify-between">
@@ -26,6 +28,8 @@ export function PlayerSelector({ players, selectedIds, onToggle, colors, maxSele
           const idx = selectedIds.indexOf(p.id);
           const selected = idx !== -1;
           const disabled = !selected && selectedIds.length >= maxSelected;
+          const matchup = matchups[p.id];
+          const oppLabel = matchup ? (matchup.opponent ? `${matchup.homeAway === "away" ? "@" : "vs"} ${matchup.opponent}` : "BYE") : null;
           return (
             <li key={p.id}>
               <button
@@ -44,6 +48,7 @@ export function PlayerSelector({ players, selectedIds, onToggle, colors, maxSele
                   {p.name}
                   {p.team && <span className="text-[var(--text-muted)]"> · {p.team}</span>}
                 </span>
+                {oppLabel && <span className="text-xs text-[var(--text-muted)]">{oppLabel}</span>}
                 <span className="tabular-nums text-[var(--text-muted)]">#{p.rank ?? "–"}</span>
               </button>
             </li>

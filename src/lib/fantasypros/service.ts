@@ -1,5 +1,5 @@
 import { fetchLiveStats, fetchLivePointsAllowed } from "./client";
-import { readCache, writeCache } from "./cache";
+import { readCache, writeCache } from "@/lib/cache";
 import { spendBudget, BudgetExceededError } from "./budget";
 import { generateMockStats, generateMockPointsAllowed } from "./mock";
 import type { PointsAllowedQuery, PointsAllowedResult, StatsQuery, StatsResult } from "./types";
