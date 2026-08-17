@@ -72,6 +72,7 @@ export interface StatCategoryDef {
 export const STAT_CATEGORIES: Record<Position, StatCategoryDef[]> = {
   QB: [
     { key: "points", label: "Fantasy Pts", higherIsBetter: true },
+    { key: "ppg", label: "Season PPG", higherIsBetter: true },
     { key: "pass_att", label: "Pass Att", higherIsBetter: true },
     { key: "pass_cmp", label: "Pass Cmp", higherIsBetter: true },
     { key: "pass_yds", label: "Pass Yds", higherIsBetter: true },
@@ -84,6 +85,7 @@ export const STAT_CATEGORIES: Record<Position, StatCategoryDef[]> = {
   ],
   RB: [
     { key: "points", label: "Fantasy Pts", higherIsBetter: true },
+    { key: "ppg", label: "Season PPG", higherIsBetter: true },
     { key: "rush_att", label: "Rush Att", higherIsBetter: true },
     { key: "rush_yds", label: "Rush Yds", higherIsBetter: true },
     { key: "rush_tds", label: "Rush TD", higherIsBetter: true },
@@ -95,6 +97,7 @@ export const STAT_CATEGORIES: Record<Position, StatCategoryDef[]> = {
   ],
   WR: [
     { key: "points", label: "Fantasy Pts", higherIsBetter: true },
+    { key: "ppg", label: "Season PPG", higherIsBetter: true },
     { key: "rec", label: "Rec", higherIsBetter: true },
     { key: "rec_tgts", label: "Targets", higherIsBetter: true },
     { key: "rec_yds", label: "Rec Yds", higherIsBetter: true },
@@ -106,6 +109,7 @@ export const STAT_CATEGORIES: Record<Position, StatCategoryDef[]> = {
   ],
   TE: [
     { key: "points", label: "Fantasy Pts", higherIsBetter: true },
+    { key: "ppg", label: "Season PPG", higherIsBetter: true },
     { key: "rec", label: "Rec", higherIsBetter: true },
     { key: "rec_tgts", label: "Targets", higherIsBetter: true },
     { key: "rec_yds", label: "Rec Yds", higherIsBetter: true },
@@ -114,6 +118,7 @@ export const STAT_CATEGORIES: Record<Position, StatCategoryDef[]> = {
   ],
   K: [
     { key: "points", label: "Fantasy Pts", higherIsBetter: true },
+    { key: "ppg", label: "Season PPG", higherIsBetter: true },
     { key: "fg", label: "FG Made", higherIsBetter: true },
     { key: "fga", label: "FG Att", higherIsBetter: true },
     { key: "fg_pct", label: "FG %", higherIsBetter: true },
@@ -121,6 +126,7 @@ export const STAT_CATEGORIES: Record<Position, StatCategoryDef[]> = {
   ],
   DST: [
     { key: "points", label: "Fantasy Pts", higherIsBetter: true },
+    { key: "ppg", label: "Season PPG", higherIsBetter: true },
     { key: "sacks", label: "Sacks", higherIsBetter: true },
     { key: "def_int", label: "INT", higherIsBetter: true },
     { key: "fumble_recovery", label: "Fum Rec", higherIsBetter: true },

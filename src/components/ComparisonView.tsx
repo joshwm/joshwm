@@ -40,6 +40,7 @@ export function ComparisonView({ dataSource, onFetched }: ComparisonViewProps) {
 
   const [schedule, setSchedule] = useState<ScheduleResult & { warning?: string } | null>(null);
   const [pointsAllowed, setPointsAllowed] = useState<PointsAllowedResult & { warning?: string } | null>(null);
+  const [seasonPointsByName, setSeasonPointsByName] = useState<Record<string, number>>({});
 
   const { categorical } = useChartPalette();
   const categories = STAT_CATEGORIES[position];
@@ -84,6 +85,22 @@ export function ComparisonView({ dataSource, onFetched }: ComparisonViewProps) {
     onFetched();
   }, [scoring, dataSource, onFetched]);
 
+  // "Season PPG" is a stable per-player baseline, independent of whichever week is
+  // selected for the main table - when a specific week is already selected, fetch the
+  // season/draft query separately to get it; when "Full Season" is selected, `result`
+  // already *is* that query, so reuse it (see ppgByName below) instead of double-fetching.
+  const loadSeasonAvg = useCallback(async () => {
+    if (week === "draft") return;
+    const params = new URLSearchParams({ season: String(CURRENT_SEASON), week: "draft", position, scoring, source: dataSource });
+    const res = await fetch(`/api/stats?${params}`);
+    if (!res.ok) return;
+    const data = (await res.json()) as StatsResult;
+    const map: Record<string, number> = {};
+    for (const p of data.players) map[p.name] = p.points;
+    setSeasonPointsByName(map);
+    onFetched();
+  }, [week, position, scoring, dataSource, onFetched]);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch triggered by filter change
     loadStats();
@@ -99,16 +116,30 @@ export function ComparisonView({ dataSource, onFetched }: ComparisonViewProps) {
     loadPointsAllowed();
   }, [loadPointsAllowed]);
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- season PPG baseline, independent of the selected week
+    loadSeasonAvg();
+  }, [loadSeasonAvg]);
+
   const matchups = useMemo(
     () => buildPlayerMatchups(result?.players ?? [], schedule?.teams ?? null, pointsAllowed?.teams ?? null),
     [result, schedule, pointsAllowed]
   );
 
+  const ppgByName = useMemo(() => {
+    if (week !== "draft") return seasonPointsByName;
+    const map: Record<string, number> = {};
+    for (const p of result?.players ?? []) map[p.name] = p.points;
+    return map;
+  }, [week, result, seasonPointsByName]);
+
   const selectedPlayers = useMemo(
-    () => (result?.players ?? []).filter((p) => selectedIds.includes(p.id)).sort(
-      (a, b) => selectedIds.indexOf(a.id) - selectedIds.indexOf(b.id)
-    ),
-    [result, selectedIds]
+    () =>
+      (result?.players ?? [])
+        .filter((p) => selectedIds.includes(p.id))
+        .sort((a, b) => selectedIds.indexOf(a.id) - selectedIds.indexOf(b.id))
+        .map((p) => ({ ...p, stats: { ...p.stats, ppg: ppgByName[p.name] ?? p.points } })),
+    [result, selectedIds, ppgByName]
   );
 
   function toggleSelected(id: string) {
